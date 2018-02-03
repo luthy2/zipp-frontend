@@ -7,7 +7,7 @@ var apiBase = null
 if (window.location.host === 'localhost:3000'){
   apiBase = 'http://localhost:5000/api/'
 }else{
-  apiBase = 'https://zipp-api.herokuapp.com/'
+  apiBase = 'https://zipp-api.herokuapp.com/api/'
 }
 
 class App extends Component {
@@ -59,8 +59,20 @@ class App extends Component {
     event.preventDefault()
     var p = {email:this.state.emailInput, password:this.state.passwordInput}
     var postData = JSON.stringify(p)
+    var queryPath = apiBase+'authenticate'
     console.log(typeof postData)
-    var resp = apiClient.apiRequest(apiBase,'authenticate', {method:"post", body:postData, headers:{'Accept': 'application/json', 'Content-Type': 'application/json'}} )
+    var resp = apiClient.apiRequest(queryPath, {method:"post", body:postData, headers:{'Accept': 'application/json', 'Content-Type': 'application/json'}} )
+    if (resp){
+      resp.then((r)=>{
+        this.setState({
+              userValidated: true,
+              currentUser: r.email,
+              currentUserToken: r.token,
+              passwordInput:'',
+              emailInput:''
+            })
+      })
+    }
     console.log(resp)
   }
 
@@ -151,7 +163,8 @@ class App extends Component {
     const user = googleUser.getAuthResponse(true)
     const p = {'id_token':user.id_token}
     const postData = JSON.stringify(p)
-    var resp = apiClient.apiRequest(apiBase+'googleoauth', {method:'post', body:postData, headers:{'Accept':'application/json', 'Content-Type': 'application/json'}})
+    const queryPath = apiBase+'googleoauth'
+    var resp = apiClient.apiRequest(queryPath, {method:'post', body:postData, headers:{'Accept':'application/json', 'Content-Type': 'application/json'}})
     console.log("google auth:"+resp)
     if (resp){
       resp.then((r)=>{
