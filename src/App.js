@@ -1,6 +1,14 @@
 import React, { Component } from 'react';
 import logo from './logo.svg';
 import './App.css';
+import apiClient from './client';
+
+var apiBase = null
+if (window.location.host === 'localhost:3000'){
+  apiBase = 'http://localhost:5000/api/'
+}else{
+  apiBase = 'https://zipp-api.herokuapp.com/'
+}
 
 class App extends Component {
   constructor(props){
@@ -48,37 +56,21 @@ class App extends Component {
     console.log(this.state)
   }
   handleAuthSubmit(event){
+    event.preventDefault()
     var p = {email:this.state.emailInput, password:this.state.passwordInput}
     var postData = JSON.stringify(p)
     console.log(typeof postData)
-    fetch("http://localhost:5000/api/authenticate", {method:"post", body:postData, headers:{'Accept': 'application/json', 'Content-Type': 'application/json'}})
-      .then(res=>res.json())
-      .then(
-        (result) => {
-          this.setState({
-            userValidated: true,
-            currentUser: result.email,
-            currentUserToken: result.token,
-            passwordInput:'',
-            emailInput:''
-          });
-          console.log(this.state)
-        },
-        (error) => {
-          this.setState({
-            userValidated:false,
-            error
-          });
-        }
-      )
-    event.preventDefault()
+    var resp = apiClient.apiRequest(apiBase,'authenticate', {method:"post", body:postData, headers:{'Accept': 'application/json', 'Content-Type': 'application/json'}} )
+    console.log(resp)
   }
+
   handleLinkInputChange(event){
     console.log('saved link input set as: '+event.target.value)
     this.setState({savedLinkInput: event.target.value}, function checkValidity(){
       this.validateLinkInput()
     })
   }
+
   validateLinkInput(){
     var exp = /(http(s)?:\/\/.)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/gi
     var regexp = new RegExp(exp);
@@ -94,28 +86,20 @@ class App extends Component {
       var p = {url:this.state.savedLinkInput}
       var postData = JSON.stringify(p)
       var token = this.state.currentUserToken
-      var query = this.state.currentUser
-      fetch("http://localhost:5000/api/user/"+query+"/saved", {method:"post", body:postData, headers:{'Authorization':token, 'Accept':'application/json', 'Content-Type': 'application/json'}})
-        .then(res=>res.json())
-        .then(
-          (result) => {
+      var user = this.state.currentUser
+      var queryPath = apiBase+"user/"+user+"/saved"
+      var resp = apiClient.apiRequest(queryPath, {method:"post", body:postData, headers:{'Authorization':token, 'Accept':'application/json', 'Content-Type': 'application/json'}})
+      console.log(resp)
+      if (resp){
+        resp.then((r)=>{
             this.setState({
               linkInputValid: false,
               savedLinkInput:'',
-              inboxItems:[...this.state.inboxItems, result]
-            });
-            console.log(result)
+              inboxItems:[...this.state.inboxItems, r]
+            })
             alert('link saved')
-          },
-          (error) => {
-            this.setState({
-              linkInputValid:false,
-              error
-            });
-            alert('failed to save link')
-          }
-        )
-      this.setState({savedLinkInput:'', linkInputValid:false})
+          })
+      }
     }
     console.log(this.state)
     event.preventDefault();
@@ -133,21 +117,15 @@ class App extends Component {
     const bookmarkId = this.state.bookmarkedId
     var t = {'tags': this.state.tagInput}
     const postData = JSON.stringify(t)
-    fetch('http://localhost:5000/api/user/'+email+'/bookmarked/'+bookmarkId, {method:'post', body:postData, headers:{'Authorization':token, 'Content-Type':'application/json', 'Accept':'application/json'}})
-      .then(res=>res.json())
-        .then(
-          (result) => {
-            this.setState({showTagModal:false, bookmarkedId:null, tagInput:''})
-            console.log(result)
-          },
-          (error) => {
-            this.setState({
-              error
-            });
-            alert('failed to save link')
-          }
-        )
+    const queryPath =apiBase+'user/'+email+'/bookmarked/'+bookmarkId
+    var resp = apiClient.apiRequest(queryPath, {method:'post', body:postData, headers:{'Authorization':token, 'Content-Type':'application/json', 'Accept':'application/json'}})
+    if (resp){
+      resp.then((r)=>{
+        this.setState({showTagModal:false, bookmarkedId:null, tagInput:''})
+      })
+    }
   }
+
   loginWillMount(){
     var self = this
     window.gapi.load('auth2', function() {
@@ -173,86 +151,73 @@ class App extends Component {
     const user = googleUser.getAuthResponse(true)
     const p = {'id_token':user.id_token}
     const postData = JSON.stringify(p)
-    fetch('http://localhost:8000/api/googleoauth', {method:'post', body:postData, headers:{'Accept':'application/json', 'Content-Type': 'application/json'}})
-      .then(res=>res.json())
-      .then(
-        (result)=>{
-          this.setState({
-            userValidated: true,
-            currentUser: result.email,
-            currentUserToken: result.token,
-            passwordInput:'',
-            emailInput:''
-          })
-        },
-        (error)=>{
-          console.log(error)
-        }
-    )
+    var resp = apiClient.apiRequest(apiBase+'googleoauth', {method:'post', body:postData, headers:{'Accept':'application/json', 'Content-Type': 'application/json'}})
+    console.log("google auth:"+resp)
+    if (resp){
+      resp.then((r)=>{
+        this.setState({
+              userValidated: true,
+              currentUser: r.email,
+              currentUserToken: r.token,
+              passwordInput:'',
+              emailInput:''
+            })
+      })
+    }
   }
   inboxDidMount(){
+    console.log(this.state)
     const currentUser = this.state.currentUser
     const token = this.state.currentUserToken
-    fetch("http://localhost:5000/api/user/"+currentUser+"/saved", { headers:{'Authorization':token}})
-      .then(res=>res.json())
-      .then(
-        (result) => {
-          this.setState({
-            inboxIsLoaded: true,
-            inboxItems:result
-          });
-          console.log(result)
-          console.log(this.state)
-        },
-        (error) => {
-          this.setState({
-            isLoaded:true,
-            error
-          });
-          console.log(error)
-        }
-      )
+    const queryPath = apiBase+'user/'+currentUser+'/saved'
+    var resp = apiClient.apiRequest(queryPath, {headers:{'Authorization':token}})
+    if (resp){
+      resp.then((r)=>{
+        this.setState({
+              inboxIsLoaded: true,
+              inboxItems:r,
+            })
+      })
+
+    }
   }
+
   dismissLinkItem(linkItem){
     var message = {'is_dismissed':true}
     var postData = JSON.stringify(message)
     var user = this.state.currentUser
     console.log(postData, user)
-    fetch('http://localhost:5000/api/user/'+user+'/saved/'+linkItem.id, { method:"post", body:postData, headers:{"Authorization": this.state.currentUserToken, 'Accept':'application/json', 'Content-Type': 'application/json'}})
-      .then(res=>res.json())
-      .then(
-        (result)=>{
-          var items = this.state.inboxItems
-          var i = items.indexOf(linkItem)
-          items.splice(i,1)
-          this.setState({inboxItems:items})
-          console.log(this.state)
-        },
-        (error)=>{
-          console.log(error)
-        }
-      )
+    const queryPath = apiBase+'user/'+user+'/saved/'+linkItem.id
+    var resp = apiClient.apiRequest(queryPath, { method:"post", body:postData, headers:{"Authorization": this.state.currentUserToken, 'Accept':'application/json', 'Content-Type': 'application/json'}})
+    if (resp){
+      resp.then((r)=>{
+        var items = this.state.inboxItems
+        var i = items.indexOf(linkItem)
+        items.splice(i,1)
+        this.setState({inboxItems:items})
+      })
+
+    }
   }
+
   bookmarkLinkItem(linkItem){
     var message = {'is_bookmarked':true}
     var postData = JSON.stringify(message)
     var user = this.state.currentUser
+    var queryPath= apiBase+'user/'+user+'/saved/'+linkItem.id
     console.log(postData, user)
-    fetch('http://localhost:5000/api/user/'+user+'/saved/'+linkItem.id, { method:"post", body:postData, headers:{"Authorization": this.state.currentUserToken, 'Accept':'application/json', 'Content-Type': 'application/json'}})
-      .then(res=>res.json())
-      .then(
-        (result)=>{
-          var items = this.state.inboxItems
-          var i = items.indexOf(linkItem)
-          items.splice(i,1)
-          this.setState({inboxItems:items, showTagModal:true, bookmarkedId:linkItem.id})
-          console.log(this.state)
-        },
-        (error)=>{
-          console.log(error)
-        }
-      )
+    var resp = apiClient.apiRequest(queryPath, { method:"post", body:postData, headers:{"Authorization": this.state.currentUserToken, 'Accept':'application/json', 'Content-Type': 'application/json'}})
+    if (resp){
+      resp.then((r)=>{
+        var items = this.state.inboxItems
+        var i = items.indexOf(linkItem)
+        items.splice(i,1)
+        this.setState({inboxItems:items, showTagModal:true, bookmarkedId:linkItem.id})
+        console.log(this.state)
+      })
+    }
   }
+
   render() {
     const nav = this.state.navigation
     var page = null
@@ -381,18 +346,14 @@ class LinkItem extends Component {
     var linkId = event.target.name
     var postData = JSON.stringify(message)
     var user = this.props.currentUser
+    var queryPath = 'user/'+user+'/saved/'+linkId
     console.log(postData, user)
-    fetch('http://localhost:5000/api/user/'+user+'/saved/'+linkId, { method:"post", body:postData, headers:{"Authorization": this.props.token, 'Accept':'application/json', 'Content-Type': 'application/json'}})
-      .then(res=>res.json())
-      .then(
-        (result)=>{
-          this.setState({isPublic:privacy})
-          console.log(this.state)
-        },
-        (error)=>{
-          console.log(error)
-        }
-      )
+    var resp = apiClient.apiRequest(queryPath, { method:"post", body:postData, headers:{"Authorization": this.props.token, 'Accept':'application/json', 'Content-Type': 'application/json'}})
+    if (resp){
+      resp.then((r)=>{
+        this.setState({isPublic:privacy})
+      })
+    }
   }
   render(){
     return(
@@ -544,17 +505,14 @@ class BookmarkList extends Component {
   componentWillMount(){
     const currentUser = this.props.currentUser
     const token = this.props.currentUserToken
-    fetch('http://localhost:5000/api/user/'+currentUser+'/bookmarked', {headers:{'Authorization':token}})
-      .then(res=>res.json())
-      .then(
-        (result)=>{
-          this.setState({items:result})
-          console.log(result)
-        },
-        (error)=>{
-          console.log(error)
-        }
-      )
+    const queryPath = apiBase+'user/'+currentUser+'/bookmarked'
+    var resp = apiClient.apiRequest(queryPath, {headers:{'Authorization':token}})
+    if (resp){
+      resp.then((r)=>{
+        this.setState({items:r})
+        console.log(this.state)
+      })
+    }
   }
   render(){
 
