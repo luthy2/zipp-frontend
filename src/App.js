@@ -165,9 +165,9 @@ class App extends Component {
     const postData = JSON.stringify(p)
     const queryPath = apiBase+'googleoauth'
     var resp = apiClient.apiRequest(queryPath, {method:'post', body:postData, headers:{'Accept':'application/json', 'Content-Type': 'application/json'}})
-    console.log("google auth:"+resp)
     if (resp){
       resp.then((r)=>{
+        console.log(r)
         this.setState({
               userValidated: true,
               currentUser: r.email,
