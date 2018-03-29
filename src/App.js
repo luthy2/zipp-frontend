@@ -26,10 +26,10 @@ class App extends Component {
       inboxItems:null,
       inboxError:null,
       inboxIsLoaded:false,
-      showTagModal:false,
-      showLinkInputModal:false,
       tagInput:'',
       bookmarkedId:'',
+      bookmarkedURL:'',
+      bookmarkedTitle:'',
       navigation:'inbox',
     }
     this.handleAuthChange = this.handleAuthChange.bind(this)
@@ -141,7 +141,7 @@ class App extends Component {
     var resp = apiClient.apiRequest(queryPath, {method:'post', body:postData, headers:{'Authorization':token, 'Content-Type':'application/json', 'Accept':'application/json'}})
     if (resp){
       resp.then((r)=>{
-        this.setState({showTagModal:false, bookmarkedId:null, tagInput:''})
+        this.setState({bookmarkedId:null, tagInput:'', bookmarkedURL:null})
       })
     }
   }
@@ -251,6 +251,7 @@ class App extends Component {
 
 
   bookmarkLinkItem(linkItem){
+    this.setState({bookmarkedId:linkItem.id, bookmarkedURL:linkItem.link, bookmarkedTitle:linkItem.title})
     var message = {'is_bookmarked':true}
     var postData = JSON.stringify(message)
     var user = this.state.currentUser
@@ -262,7 +263,7 @@ class App extends Component {
         var items = this.state.inboxItems
         var i = items.indexOf(linkItem)
         items.splice(i,1)
-        this.setState({inboxItems:items, showTagModal:true, bookmarkedId:linkItem.id})
+        this.setState({inboxItems:items})
         console.log(this.state)
       })
     }
@@ -288,10 +289,12 @@ class App extends Component {
           <Header pageName={this.state.navigation}/>
           <div className="container-fluid pt-2">
           <BookmarkTagForm
-            showTagModal={this.state.showTagModal}
             handleTagSubmit={this.handleTagSubmit}
             handleTagInputChange={this.handleTagInputChange}
             tagInput = {this.state.tagInput}
+            bookmarkedId = {this.state.bookmarkedId}
+            bookmarkedURL = {this.state.bookmarkedURL}
+            bookmarkedTitle = {this.state.bookmarkedTitle}
           />
           <LinkInput
                       currentUser={this.state.currentUser}
@@ -449,7 +452,7 @@ class LinkItem extends Component {
             <div className="row">
               <div className="col-sm">
                 <span m-auto>
-                  <input type="button" className="btn btn-outline-primary btn-sm mr-1" value="bookmark" onClick={this.bookmarkLinkItem}/>
+                  <input type="button" className="btn btn-outline-primary btn-sm mr-1" value="bookmark" onClick={this.bookmarkLinkItem} data-toggle="modal" data-target="#bookmarkTagInputModal"/>
                 </span>
                 <span>
                   <input type="button" className="btn btn-outline-primary btn-sm m-1" value="dismiss" onClick={this.dismissLinkItem}/>
@@ -482,20 +485,20 @@ class BookmarkTagForm extends Component {
     this.props.handleTagSubmit(event)
   }
   render(){
-    if (this.props.showTagModal){
+    const urlLabel = <div><a href={this.props.bookmarkedURL} target="_blank">{this.props.bookmarkedTitle}</a> - add tags</div>
       return(
-        <div className="modal">
-          <form onSubmit={this.props.handleTagSubmit} className="modal-content">
-            <label> Add Tags
-              <input type="text" value={this.props.tagInput} id={this.props.linkId} onChange={this.props.handleTagInputChange} />
-            </label>
-            <input type="submit" value="Save Tags"/>
-          </form>
-        </div>
-      )
-    }else{
-      return(null)
-    }
+        <Modal
+          modalId='bookmarkTagInputModal'
+          title="Add Tags"
+          placeholder="Seperate, Tags, By, Comma"
+          handleSubmit = {this.handleTagSubmit}
+          label="Enter URL"
+          inputValue={this.props.tagInput}
+          handleChange={this.props.handleTagInputChange}
+          id = {this.props.linkId}
+          formLabel = {urlLabel}
+          />
+    )
   }
 }
 
@@ -526,28 +529,15 @@ class LinkInput extends Component{
 
   render(){
     return(
-      <div className="modal fade" id="linkInputModal" tabindex="-1" role="dialog" aria-labelledby="linkInputModalLabel" aria-hidden="true">
-        <div className="modal-dialog" role="document">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h5 className="modal-title" id="linkInputModalLabel">Save a link</h5>
-                <button type="button" className="close" data-dismiss="modal" aria-label="Close">
-                  <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-        <div className="modal-body">
-          <form className="form-inline" onSubmit={this.handleLinkSubmit}>
-            <label className= "sr-only"> Save a Link</label>
-              <input type="text"  name="savedLink" value={this.props.savedLinkInput} placeholder="https://..." className="form-control form-control-sm mr-1" onInput={this.props.handleLinkInputChange}/>
-            <input type="submit" value="Save" className="btn btn-primary btn-sm"/>
-          </form>
-        </div>
-        <div className="modal-footer">
-          <button type="button" className="btn btn-secondary btn-sm" data-dismiss="modal">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
+      <Modal
+        modalId='linkInputModal'
+        title="Save a Link"
+        handleSubmit = {this.handleLinkSubmit}
+        label="Enter URL"
+        inputValue={this.props.savedLinkInput}
+        handleChange={this.props.handleLinkInputChange}
+        placeholder="https://..."
+        />
     )
   }
 }
@@ -579,23 +569,27 @@ class LoginForm extends Component {
   }
 
   render(){
+    var gSignInStyle : {
+      width:500
+    }
     return(
-      <div className="login-container">
-      Login
-        <form onSubmit={this.handleSubmit}>
-          <label> email
-          <div>
-            <input type="text" name= "emailInput" value={this.props.emailInput} onChange={this.handleChange} className="input-default"/>
-            </div>
-          </label>
-          <label> Password
-          <div>
-            <input type="password" name= "passwordInput" value={this.state.passwordInput} onChange={this.handleChange} className="input-default"/>
-            </div>
-          </label>
-          <input type="submit" value="Login" className="input-default"/>
-        </form>
-        <div class="g-signin2"></div>
+      <div className="container-fluid">
+        <div className="row justify-content-md-center pt-5">
+          <div className="">
+            <h3 className="text-center">Login</h3>
+            <form  className="form-group" onSubmit={this.handleSubmit}>
+              <div>
+                <input type="text" name= "emailInput" value={this.props.emailInput} onChange={this.handleChange} className="form-control my-1" placeholder="john@example.com"/>
+              </div>
+              <div>
+                <input type="password" name= "passwordInput" value={this.state.passwordInput} onChange={this.handleChange} className="form-control" placeholder="password"/>
+              </div>
+              <input type="submit" value="Login" className="btn btn-primary btn-block my-1"/>
+            </form>
+          <div className="text-center mb-2">or</div>
+          <div class="g-signin2" data-width="350"></div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -730,6 +724,56 @@ class Bookmarklet extends Component{
       <div>
         <div>{getSavedURL()}</div>
         <button className="btn btn-primary">Save</button>
+      </div>
+    )
+  }
+}
+
+class Modal extends Component{
+  constructor(props){
+    super(props)
+    this.handleSubmit = this.handleSubmit.bind(this)
+    this.handleChange = this.handleChange.bind(this)
+  }
+
+  handleSubmit(event){
+    this.props.handleSubmit(event)
+  }
+
+  handleChange(event){
+    this.props.handleChange(event)
+  }
+
+  render(){
+    var modaLabel = this.props.modalId.concat('Label')
+
+    var formLabel =() =>{if (this.props.formLabel){
+      console.log(this.props.formLabel)
+      return <label>{this.props.formLabel}</label>
+    }}
+    return(
+      <div className="modal fade" id={this.props.modalId} tabindex="-1" role="dialog" aria-labelledby={modaLabel} aria-hidden="true">
+        <div className="modal-dialog" role="document">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h5 className="modal-title" id="linkInputModalLabel">{this.props.title}</h5>
+                    <button type="button" className="close" data-dismiss="modal" aria-label="Close">
+                      <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            <div className="modal-body">
+              <form className="form-inline" onSubmit={this.props.handleSubmit}>
+                <label className= "sr-only"> {this.props.label}</label>
+                {formLabel()}
+                  <input type="text"  value={this.props.inputValue} placeholder={this.props.placeholder} className="form-control form-control-sm mr-1" onInput={this.props.handleChange} id={this.props.id}/>
+                <input type="submit" value="Save" className="btn btn-primary btn-sm" data-toggle="modal" data-target={"#"+this.props.modalId}/>
+              </form>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary btn-sm" data-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
