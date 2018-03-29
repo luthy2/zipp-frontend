@@ -10,6 +10,8 @@ if (window.location.host === 'localhost:3000'){
   apiBase = 'https://zipp-api.herokuapp.com/api/'
 }
 
+
+
 class App extends Component {
   constructor(props){
     super(props);
@@ -25,6 +27,7 @@ class App extends Component {
       inboxError:null,
       inboxIsLoaded:false,
       showTagModal:false,
+      showLinkInputModal:false,
       tagInput:'',
       bookmarkedId:'',
       navigation:'inbox',
@@ -39,16 +42,19 @@ class App extends Component {
     this.handleNavChange = this.handleNavChange.bind(this)
     this.handleTagInputChange = this.handleTagInputChange.bind(this)
     this.handleTagSubmit = this.handleTagSubmit.bind(this)
-    this.loginWillMount = this.loginWillMount.bind(this)
+    // this.loginWillMount = this.loginWillMount.bind(this)
+    this.loginDidMount = this.loginDidMount.bind(this)
     this.googleDidAuth = this.googleDidAuth.bind(this)
+    this.handleSignOut = this.handleSignOut.bind(this)
   }
+
   handleNavChange(event){
     event.preventDefault()
     const value = event.target.id
     this.setState({navigation:value})
     console.log(this.state)
-
   }
+
   handleAuthChange(event){
     const name = event.target.name
     const value = event.target.value
@@ -92,8 +98,9 @@ class App extends Component {
       return this.setState({linkInputValid:false})
     }
   }
+
   handleLinkSubmit(event){
-    console.log(this.state)
+    event.preventDefault();
     if(this.state.linkInputValid){
       var p = {url:this.state.savedLinkInput}
       var postData = JSON.stringify(p)
@@ -107,6 +114,7 @@ class App extends Component {
             this.setState({
               linkInputValid: false,
               savedLinkInput:'',
+              showLinkInputModal:false,
               inboxItems:[...this.state.inboxItems, r]
             })
             alert('link saved')
@@ -114,7 +122,7 @@ class App extends Component {
       }
     }
     console.log(this.state)
-    event.preventDefault();
+
   }
 
   handleTagInputChange(event){
@@ -138,7 +146,7 @@ class App extends Component {
     }
   }
 
-  loginWillMount(){
+  loginDidMount(){
     var self = this
     window.gapi.load('auth2', function() {
       const auth2 = window.gapi.auth2.init({
@@ -146,22 +154,36 @@ class App extends Component {
       });
       auth2.then(auth=>auth.isSignedIn.get())
         .then((result)=>{
+          console.log(result)
           if (result){
             auth2.then(auth=>auth.currentUser.get())
               .then((user)=>{
                 console.log(user)
-                self.googleDidAuth(user)
+                if (user){
+                  self.googleDidAuth()
+                }
               })
           } else {
             auth2.then(auth=>auth.isSignedIn.listen(self.googleDidAuth))
           }
         })
-
     })
   }
-  googleDidAuth(googleUser){
-    const user = googleUser.getAuthResponse(true)
-    const p = {'id_token':user.id_token}
+
+  googleDidAuth(){
+    var self=this
+    const auth2 = window.gapi.auth2.getAuthInstance()
+    auth2.then(auth=>auth.currentUser.get())
+      .then((user)=>user.getAuthResponse())
+        .then((resp)=>{
+          self.verifyGoogleLogin(resp.id_token)
+        })
+    }
+
+  verifyGoogleLogin(id_token){
+    console.log(id_token)
+    const p = {'id_token':id_token}
+    console.log(p)
     const postData = JSON.stringify(p)
     const queryPath = apiBase+'googleoauth'
     var resp = apiClient.apiRequest(queryPath, {method:'post', body:postData, headers:{'Accept':'application/json', 'Content-Type': 'application/json'}})
@@ -178,6 +200,20 @@ class App extends Component {
       })
     }
   }
+  handleSignOut(){
+    var auth2 = window.gapi.auth2.getAuthInstance();
+     auth2.signOut().then(function () {
+     console.log('User signed out.');
+   });
+   this.setState({
+     userValidated:false,
+     currentUser:null,
+     currentUserToken:null,
+     passwordInput:'',
+     emailInput:''
+   })
+  }
+
   inboxDidMount(){
     console.log(this.state)
     const currentUser = this.state.currentUser
@@ -213,6 +249,7 @@ class App extends Component {
     }
   }
 
+
   bookmarkLinkItem(linkItem){
     var message = {'is_bookmarked':true}
     var postData = JSON.stringify(message)
@@ -238,12 +275,18 @@ class App extends Component {
       page = <LinkList currentUser={this.state.currentUser} currentUserToken={this.state.currentUserToken} inboxItems = {this.state.inboxItems} componentDidMount={this.inboxDidMount} inboxIsLoaded={this.state.inboxIsLoaded} inboxError={this.props.inboxError} dismissLinkItem={this.dismissLinkItem} bookmarkLinkItem={this.bookmarkLinkItem}/>
     } else if (nav=="bookmarks"){
       page = <BookmarkList currentUserToken={this.state.currentUserToken} currentUser={this.state.currentUser}/>
+    } else if (nav=="profile"){
+      page = <Profile currentUser={this.state.currentUser}/>
+    } else if (nav == "bookmarklet"){
+      page = <Bookmarklet/>
     }
     if (this.state.userValidated){
       return (
         <div>
-          <Nav handleNavChange={this.handleNavChange}/>
-          <Header user={this.state.currentUser}/>
+          <Nav handleNavChange={this.handleNavChange} handleSignOut={this.handleSignOut} currentUser={this.state.currentUser}
+          showLinkInputModal={this.showLinkInputModal}/>
+          <Header pageName={this.state.navigation}/>
+          <div className="container-fluid pt-2">
           <BookmarkTagForm
             showTagModal={this.state.showTagModal}
             handleTagSubmit={this.handleTagSubmit}
@@ -251,21 +294,23 @@ class App extends Component {
             tagInput = {this.state.tagInput}
           />
           <LinkInput
-            currentUser={this.state.currentUser}
-            currentUserToken={this.state.currentUserToken}
-            handleLinkInputChange={this.handleLinkInputChange}
-            handleLinkSubmit={this.handleLinkSubmit}
-            validateLinkInput={this.validateLinkInput}
-            savedLinkInput={this.state.savedLinkInput}
-            linkInputValid={this.state.linkInputValid}
-            />
+                      currentUser={this.state.currentUser}
+                      currentUserToken={this.state.currentUserToken}
+                      handleLinkInputChange={this.handleLinkInputChange}
+                      handleLinkSubmit={this.handleLinkSubmit}
+                      validateLinkInput={this.validateLinkInput}
+                      savedLinkInput={this.state.savedLinkInput}
+                      linkInputValid={this.state.linkInputValid}
+                      showLinkInputModal={this.state.showLinkInputModal}
+                      />
           {page}
+          </div>
         </div>
       )
     } else {
       return(
         <LoginForm emailInput={this.state.emailInput} passwordInput={this.state.passwordInput} onInputChange={this.handleAuthChange} onSubmitAuth={this.handleAuthSubmit}
-        loginWillMount={this.loginWillMount}/>
+        loginDidMount={this.loginDidMount}/>
       )
     }
   }
@@ -274,7 +319,13 @@ class App extends Component {
 class Header extends Component {
   render() {
     return (
-      <h4 className="greeting">{this.props.user} reading list</h4>
+      <div className="container-fluid">
+      <div className="row justify-content-md-center mt-5 pt-5">
+        <div className="col-md-6">
+          <h4>{this.props.pageName}</h4>
+        </div>
+      </div>
+      </div>
     )
   }
 }
@@ -310,12 +361,12 @@ class LinkList extends Component {
       return <div>Loading...</div>
     } else {
       return  (
-        <div className="inbox-main">
-          <ul className="inbox-link-list">
+        <div className="row justify-content-md-center">
+          <div className="col-md-6">
             {items.map(item => (
               <LinkItem  item={item} dismissLinkItem={this.dismissLinkItem} bookmarkLinkItem={this.bookmarkLinkItem} key={item.id.toString()} token={this.props.currentUserToken} currentUser={this.props.currentUser}/>
             ))}
-          </ul>
+          </div>
         </div>
       )
     }
@@ -359,7 +410,7 @@ class LinkItem extends Component {
     var linkId = event.target.name
     var postData = JSON.stringify(message)
     var user = this.props.currentUser
-    var queryPath = 'user/'+user+'/saved/'+linkId
+    var queryPath = apiBase+'user/'+user+'/saved/'+linkId
     console.log(postData, user)
     var resp = apiClient.apiRequest(queryPath, { method:"post", body:postData, headers:{"Authorization": this.props.token, 'Accept':'application/json', 'Content-Type': 'application/json'}})
     if (resp){
@@ -369,19 +420,51 @@ class LinkItem extends Component {
     }
   }
   render(){
+    var date = new Date(this.props.item.timestamp)
+    var timestamp = date.toDateString()
+    var description = ()=>{
+        if (this.props.item.description){
+          var s = this.props.item.description.split(' ')
+          if (s.length > 25){
+            var d = s.slice(0,25).concat('...').join(' ')
+            console.log(d)
+            return d
+          }else{
+            return this.props.item.description
+          }
+        }else{
+          return "No Description Available"
+        }
+      }
+    console.log(description)
     return(
-      <li className="inbox-link-item">
-        <div>
-          <a href={this.props.item.link} target="_blank">{this.props.item.title ? this.props.item.title : this.props.item.link} </a>
-          <div className="inbox-link-description">{this.props.item.description ? this.props.item.description : 'No Description Available' }</div>
-          <div>
-            <input className="link-action-button" type="button" value="bookmark" onClick={this.bookmarkLinkItem}/><input className="link-action-button" type="button" value="dismiss" onClick={this.dismissLinkItem}/>
-            <label>public
-              <input type="checkbox" checked={this.state.isPublic} name={this.props.item.id} onChange={this.toggleLinkPrivacy} />
-            </label>
+      <div className="row my-4">
+        <div className="col">
+            <div className="row">
+              <div className="col">
+                <h6><a href={this.props.item.link} target="_blank" className="inbox-link-text">{this.props.item.title ? this.props.item.title : this.props.item.link} </a></h6>
+                <div className="inbox-link-description">{description() ? description() : 'No Description Available'}</div>
+              </div>
+            </div>
+            <div className="row">
+              <div className="col-sm">
+                <span m-auto>
+                  <input type="button" className="btn btn-outline-primary btn-sm mr-1" value="bookmark" onClick={this.bookmarkLinkItem}/>
+                </span>
+                <span>
+                  <input type="button" className="btn btn-outline-primary btn-sm m-1" value="dismiss" onClick={this.dismissLinkItem}/>
+                </span>
+                <span className="form-check-inline m-1">
+                  <label className="form-check-label">
+                    <input type="checkbox" className="form-check-input" checked={this.state.isPublic} name={this.props.item.id} onChange={this.toggleLinkPrivacy}/>
+                    public
+                  </label>
+                </span>
+                <small className="text-muted"> saved on {timestamp}</small>
+              </div>
+            </div>
           </div>
-        </div>
-      </li>
+      </div>
     )
   }
 }
@@ -443,21 +526,28 @@ class LinkInput extends Component{
 
   render(){
     return(
-      <div className="link-input-container">
-        <form onSubmit={this.handleLinkSubmit}>
-          <label> Save a Link
-            <div>
-              <input
-                type="text"
-                name="savedLink"
-                value={this.props.savedLinkInput}
-                placeholder="https://..." className="input-default" onInput={this.props.handleLinkInputChange}
-                />
+      <div className="modal fade" id="linkInputModal" tabindex="-1" role="dialog" aria-labelledby="linkInputModalLabel" aria-hidden="true">
+        <div className="modal-dialog" role="document">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h5 className="modal-title" id="linkInputModalLabel">Save a link</h5>
+                <button type="button" className="close" data-dismiss="modal" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
             </div>
-          </label>
-          <input type="submit" value="Save" className="button-default"/>
-        </form>
+        <div className="modal-body">
+          <form className="form-inline" onSubmit={this.handleLinkSubmit}>
+            <label className= "sr-only"> Save a Link</label>
+              <input type="text"  name="savedLink" value={this.props.savedLinkInput} placeholder="https://..." className="form-control form-control-sm mr-1" onInput={this.props.handleLinkInputChange}/>
+            <input type="submit" value="Save" className="btn btn-primary btn-sm"/>
+          </form>
+        </div>
+        <div className="modal-footer">
+          <button type="button" className="btn btn-secondary btn-sm" data-dismiss="modal">Close</button>
+        </div>
       </div>
+    </div>
+  </div>
     )
   }
 }
@@ -480,8 +570,12 @@ class LoginForm extends Component {
     this.props.onSubmitAuth(event)
   }
 
-  componentWillMount(){
-    this.props.loginWillMount()
+  // componentWillMount(){
+  //   this.props.loginWillMount()
+  // }
+
+  componentDidMount(){
+    this.props.loginDidMount()
   }
 
   render(){
@@ -530,12 +624,12 @@ class BookmarkList extends Component {
   render(){
 
     return(
-      <div className="inbox-main">
-        <ul className="bookmark-link-list">
+      <div className="row justify-content-md-center">
+        <div className="col-md-6">
           {this.state.items.map(item => (
             <BookmarkItem item={item} dismissLinkItem={this.dismissBookmarkItem} key={item.id.toString()}/>
           ))}
-        </ul>
+        </div>
       </div>
     )
   }
@@ -551,17 +645,31 @@ class BookmarkItem extends Component {
     event.preventDefault();
   }
   render(){
+  var description = ()=>{
+      if (this.props.item.description){
+        var s = this.props.item.description.split(' ')
+        if (s.length > 25){
+          var d = s.slice(0,25).concat('...').join(' ')
+          console.log(d)
+          return d
+        }else{
+          return this.props.item.description
+        }
+      }else{
+        return "No Description Available"
+      }
+    }
     const tags = this.props.item.tags
     console.log(typeof(tags), tags)
-    const tagList=tags.map(tag => (<a href="" onClick={this.searchTag} className="tag-item">{tag}</a>))
+    const tagList=tags.map(tag => (<li className="list-inline-item"><a href="" onClick={this.searchTag} className="text-secondary">{tag}</a></li>))
     return(
-      <li className="bookmark-link-item">
-        <div>
-          <a href={this.props.item.link} target="_blank">{this.props.item.title ? this.props.item.title : this.props.item.link} </a>
-          <div className="bookmark-link-description">{this.props.item.description ? this.props.item.description : 'No Description Available' }</div>
-          <div className="saved-link-tags">{tagList}</div>
+      <div className="row my-4">
+        <div className="col">
+          <h6><a href={this.props.item.link} target="_blank">{this.props.item.title ? this.props.item.title : this.props.item.link} </a></h6>
+          <div className="bookmark-link-description">{description()}</div>
+          <div className="saved-link-tags"><ul className="list-inline">{tagList}</ul></div>
         </div>
-      </li>
+      </div>
     )
   }
 }
@@ -570,21 +678,61 @@ class Nav extends Component {
   constructor(props){
     super(props)
     this.handleNavChange = this.handleNavChange.bind(this)
+    this.handleSignOut = this.handleSignOut.bind(this)
   }
 
   handleNavChange(event){
     this.props.handleNavChange(event)
   }
+  handleSignOut(){
+    this.props.handleSignOut()
+  }
   render(){
     return(
-      <div className="navigation-bar">
-        <a id="inbox" href ="" onClick={this.props.handleNavChange} className="navigation">Inbox</a>
-        <a id="bookmarks" href="" onClick={this.props.handleNavChange} className="navigation">Bookmarks</a>
+      <div className="navbar navbar-expand-lg fixed-top p-3 px-md-4 mb-3 bg-white border-bottom box-shadow" role="navbar">
+        <a id="brand" className="navbar-brand">Zipp</a>
+          <div className="navbar-nav mr-auto">
+              <a id="inbox" href ="" onClick={this.props.handleNavChange} className="nav-item nav-link">Inbox</a>
+              <a id="bookmarks" href="" onClick={this.props.handleNavChange} className="nav-item nav-link">Bookmarks</a>
+          </div>
+          <div className="navbar-nav">
+              <button className="btn btn-sm btn-outline-primary" type="button"  data-toggle="modal" data-target="#linkInputModal">Save</button>
+              <a id="profile" href="" className="nav-item nav-link mr-auto" onClick={this.props.handleNavChange}>{this.props.currentUser}</a>
+              <a id="signOut" href="" onClick={this.props.handleSignOut} className="nav-item nav-link mr-auto">sign out</a>
+          </div>
       </div>
     )
   }
 }
 
+class Profile extends Component{
+  constructor(props){
+    super(props)
+  }
+  render(){
+    return(
+      <div>
+      {this.props.currentUser}
+      <a href = "javascript:window.location='localhost:3000?u='+encodeURIComponent(document.location)">bookmarklet</a>
+      </div>
+    )
+  }
+}
 
+class Bookmarklet extends Component{
+  render(){
+    var getSavedURL = () =>{
+      var url = new URL(window.location.href)
+      var savedUrl = url.searchParams.get('u')
+      return savedUrl
+    }
+    return(
+      <div>
+        <div>{getSavedURL()}</div>
+        <button className="btn btn-primary">Save</button>
+      </div>
+    )
+  }
+}
 
 export default App;
