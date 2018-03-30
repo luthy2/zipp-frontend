@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import logo from './logo.svg';
 import './App.css';
 import apiClient from './client';
+import Header from './components/Header'
 
 var apiBase = null
 if (window.location.host === 'localhost:3000'){
@@ -319,19 +320,7 @@ class App extends Component {
   }
 }
 
-class Header extends Component {
-  render() {
-    return (
-      <div className="container-fluid">
-      <div className="row justify-content-md-center mt-5 pt-5">
-        <div className="col-md-6">
-          <h4>{this.props.pageName}</h4>
-        </div>
-      </div>
-      </div>
-    )
-  }
-}
+
 
 class LinkList extends Component {
   constructor(props){
@@ -361,7 +350,11 @@ class LinkList extends Component {
     if (error){
       return <div>Error: {error.message}</div>
     } else if (!isLoaded) {
-      return <div>Loading...</div>
+      return <div className="spinner">
+              <div className="bounce1"></div>
+              <div className="bounce2"></div>
+              <div className="bounce3"></div>
+            </div>
     } else {
       return  (
         <div className="row justify-content-md-center">
@@ -729,54 +722,5 @@ class Bookmarklet extends Component{
   }
 }
 
-class Modal extends Component{
-  constructor(props){
-    super(props)
-    this.handleSubmit = this.handleSubmit.bind(this)
-    this.handleChange = this.handleChange.bind(this)
-  }
-
-  handleSubmit(event){
-    this.props.handleSubmit(event)
-  }
-
-  handleChange(event){
-    this.props.handleChange(event)
-  }
-
-  render(){
-    var modaLabel = this.props.modalId.concat('Label')
-
-    var formLabel =() =>{if (this.props.formLabel){
-      console.log(this.props.formLabel)
-      return <label>{this.props.formLabel}</label>
-    }}
-    return(
-      <div className="modal fade" id={this.props.modalId} tabindex="-1" role="dialog" aria-labelledby={modaLabel} aria-hidden="true">
-        <div className="modal-dialog" role="document">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h5 className="modal-title" id="linkInputModalLabel">{this.props.title}</h5>
-                    <button type="button" className="close" data-dismiss="modal" aria-label="Close">
-                      <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-            <div className="modal-body">
-              <form className="form-inline" onSubmit={this.props.handleSubmit}>
-                <label className= "sr-only"> {this.props.label}</label>
-                {formLabel()}
-                  <input type="text"  value={this.props.inputValue} placeholder={this.props.placeholder} className="form-control form-control-sm mr-1" onInput={this.props.handleChange} id={this.props.id}/>
-                <input type="submit" value="Save" className="btn btn-primary btn-sm" data-toggle="modal" data-target={"#"+this.props.modalId}/>
-              </form>
-            </div>
-            <div className="modal-footer">
-              <button type="button" className="btn btn-secondary btn-sm" data-dismiss="modal">Close</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-}
 
 export default App;
