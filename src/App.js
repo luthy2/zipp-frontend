@@ -3,6 +3,7 @@ import logo from './logo.svg';
 import './App.css';
 import apiClient from './client';
 import Header from './components/Header'
+import Modal from './components/Modal'
 
 var apiBase = null
 if (window.location.host === 'localhost:3000'){
