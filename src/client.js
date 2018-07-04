@@ -1,7 +1,17 @@
 class ApiClient{
+  constructor(){
+    this.apiBase =  function(){
+      if (window.location.host === 'localhost:3000'){
+        return 'http://localhost:5000/api/'
+      }else{
+        return 'https://zipp-api.herokuapp.com/api/'
+      }
+    }
+  }
 
-  static apiRequest(path, options){
-    return fetch(path, options)
+  apiRequest(path, options){
+    var base = this.apiBase()
+    return fetch(base+path, options)
       .then(res=>res.json())
       .then(
         (result)=>{
