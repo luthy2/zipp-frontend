@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 
-class Modal extends Component{
+class Modal extends Component {
   constructor(props){
     super(props)
     this.handleSubmit = this.handleSubmit.bind(this)
@@ -15,14 +15,14 @@ class Modal extends Component{
     this.props.handleChange(event)
   }
 
-  render(){
-    var modaLabel = this.props.modalId.concat('Label')
+  render () {
+    let modaLabel = this.props.modalId.concat('Label')
 
-    var formLabel =() =>{if (this.props.formLabel){
-      console.log(this.props.formLabel)
+    let formLabel = () => {if (this.props.formLabel) {
       return <label>{this.props.formLabel}</label>
     }}
-    return(
+
+    return (
       <div className="modal fade" id={this.props.modalId} tabindex="-1" role="dialog" aria-labelledby={modaLabel} aria-hidden="true">
         <div className="modal-dialog" role="document">
           <div className="modal-content">

@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 
-class MultiSelect extends Component{
+class MultiSelect extends Component {
   constructor(props){
     super(props)
     this.state ={

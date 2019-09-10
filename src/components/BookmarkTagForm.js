@@ -7,14 +7,18 @@ class BookmarkTagForm extends Component {
     this.handleTagInputChange = this.handleTagInputChange.bind(this)
     this.handleTagSubmit = this.handleTagSubmit.bind(this)
   }
-  handleTagInputChange(event){
+
+  handleTagInputChange (event) {
     this.props.handleTagInputChange(event)
   }
-  handleTagSubmit(event){
+
+  handleTagSubmit (event) {
     this.props.handleTagSubmit(event)
   }
-  render(){
-    const urlLabel = <div><a href={this.props.bookmarkedURL} target="_blank">{this.props.bookmarkedTitle}</a> - add tags</div>
+
+  render () {
+    const urlLabel = <div>
+    <a href={this.props.bookmarkedURL} target="_blank">{this.props.bookmarkedTitle}</a> - add tags</div>
       return(
         <Modal
           modalId='bookmarkTagInputModal'

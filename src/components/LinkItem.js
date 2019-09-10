@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import apiClient from '../client';
+import apiClient from '../api/client';
 
 var cli = new apiClient()
 
